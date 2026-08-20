@@ -2,8 +2,8 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const STORAGE_KEYS = {
-  gasUrl: "kip_gas_web_app_url",
-  sessionToken: "kip_gas_session_token"
+  gasUrl: "https://script.google.com/macros/s/AKfycbwlJTYq6NPG9JdY6I8eb4cGiNh4N_8GFuiYQz5fpIbrZXrkDHNrKsY6TdIBwq9F7huGTg/exec",
+  sessionToken: "83622289146b4cb0aadb00ded25eb0218b4f8bc9ea444ba4918e7a156434dcbe"
 };
 
 const state = {
