@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#082d73" />
+  <title>KIP Automatic Material Production</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="glow glow-red"></div><div class="glow glow-blue"></div>
+  <section id="loginView" class="login-view">
+    <div class="login-shell">
+      <div class="login-brand panel">
+        <img src="./assets/kip-logo.jpg" class="login-logo" alt="KIP" />
+        <span class="eyebrow">AUTOMATION V2</span>
+        <h1>Regular Material<br><span>Production Center</span></h1>
+        <p>Five staggered production lines. Exactly one automatic image attempt per page, server-side PDF, 18-hour source retention, then human visual QC.</p>
+        <div class="mini-grid"><span>05:30–07:30 WIB</span><span>GPT Image 2 Medium</span><span>10 planned images/day</span><span>No auto retry</span></div>
+      </div>
+      <form id="loginForm" class="login-card panel">
+        <h2>Operator Sign In</h2><p>Authorized KIP production account only.</p>
+        <label>Email</label><input id="loginEmail" type="email" required autocomplete="username" />
+        <label>Password</label><input id="loginPassword" type="password" required autocomplete="current-password" />
+        <button id="loginBtn" class="btn btn-red" type="submit">Sign in</button>
+        <details class="connection"><summary>First-time Apps Script connection</summary><label>Web App /exec URL</label><input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" /><button id="saveGasUrlBtn" type="button" class="btn btn-ghost">Save connection</button></details>
+        <div id="loginStatus" class="status hidden"></div>
+      </form>
+    </div>
+  </section>
+
+  <main id="appView" class="hidden">
+    <header class="topbar">
+      <div class="brand"><img src="./assets/kip-logo.jpg" alt="KIP"/><div><strong>KIP Automatic Production</strong><small>Regular Material · Automation V2</small></div></div>
+      <div class="top-actions"><a href="./utilities.html#imagesToPdf" class="btn btn-ghost">PDF Converter</a><a href="./utilities.html#backgroundToWhite" class="btn btn-ghost">White Background</a><button id="logoutBtn" class="btn btn-ghost">Sign out</button></div>
+    </header>
+
+    <section class="hero shell">
+      <div><span class="eyebrow">CONTROLLED AUTOMATION</span><h1>Generate once.<br><span>QC after PDF.</span></h1><p>The schedule generates one level at a time. Bad-looking output is never regenerated automatically; only an explicit human click can spend another image call.</p></div>
+      <div class="hero-card"><div class="hero-kpi"><b>18h</b><span>source PNG retention</span></div><div class="hero-kpi"><b>0×</b><span>automatic retries</span></div><div class="hero-kpi"><b>5</b><span>independent level triggers</span></div></div>
+    </section>
+
+    <section class="shell schedule-panel panel">
+      <div class="section-head"><div><span class="eyebrow">DAILY SCHEDULE · WIB</span><h2>Five independent production windows</h2></div><div class="link-row"><a id="generationLogLink" class="btn btn-ghost disabled" target="_blank">Generation Log</a><a id="driveFolderLink" class="btn btn-ghost disabled" target="_blank">Regular Material Drive</a></div></div>
+      <div id="scheduleGrid" class="schedule-grid"></div>
+    </section>
+
+    <section class="shell controls panel">
+      <div><label>Material date</label><div class="date-row"><input id="materialDate" type="date"/><button id="todayBtn" class="btn btn-ghost">Today</button><button id="loadBtn" class="btn btn-navy">Load production</button></div></div>
+      <div class="summary"><div><b id="summaryLoaded">0 / 5</b><span>Loaded</span></div><div><b id="summaryP1">0 / 5</b><span>P1 ready</span></div><div><b id="summaryP2">0 / 5</b><span>P2 ready</span></div><div><b id="summaryPdf">0 / 5</b><span>PDF ready</span></div><div><b id="summaryQc">0 / 5</b><span>QC approved</span></div></div>
+    </section>
+    <div id="globalStatus" class="shell status hidden"></div>
+    <section id="materialsGrid" class="shell materials-grid"><div class="empty panel"><b>Load a date</b><p>The dashboard reads the five curriculum sheets plus persistent production state.</p></div></section>
+  </main>
+
+  <div id="imageModal" class="modal hidden"><div class="modal-card"><div class="modal-head"><div><small id="modalLevel"></small><h3 id="modalTitle"></h3></div><button id="closeModalBtn" class="icon-btn">×</button></div><img id="modalImage" alt="Generated material preview"/><p class="modal-note">Preview includes the deterministic KIP watermark. The original PNG remains in temporary Drive storage for 18 hours from its creation time.</p></div></div>
+  <script src="./app.js"></script>
+</body>
+</html>

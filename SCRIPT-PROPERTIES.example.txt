@@ -1,0 +1,16 @@
+# Required Script Properties
+OPENAI_API_KEY=sk-...
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD=change-me
+SESSION_SECRET=use-generateSessionSecret-or-your-own-long-secret
+
+# Optional
+SESSION_HOURS=12
+# SPREADSHEET_ID=only-if-standalone-script
+
+# The installer writes these automatically:
+# OPENAI_IMAGE_MODEL=gpt-image-2
+# OPENAI_IMAGE_SIZE=1024x1536
+# OPENAI_IMAGE_QUALITY=medium
+# KIP_TEMP_FOLDER_ID=...
+# KIP_REGULAR_ROOT_FOLDER_ID=...

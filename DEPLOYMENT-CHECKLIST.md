@@ -1,0 +1,21 @@
+# Deployment Checklist — Automation V2
+
+- [ ] Back up the existing Apps Script project.
+- [ ] Paste `gas/Code.gs`.
+- [ ] Set project timezone / manifest to `Asia/Jakarta`.
+- [ ] Script Properties: `OPENAI_API_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_SECRET`.
+- [ ] Run `installKipAutomationV2()` once.
+- [ ] Authorize requested Google permissions.
+- [ ] Confirm `Production_Log` and `Generation_Log` exist.
+- [ ] Confirm Drive folder `Regular Material` and all five level subfolders exist.
+- [ ] Run `showCurrentImageConfig()`; expect `gpt-image-2`, `1024x1536`, `medium`.
+- [ ] Run `listKipAutomationTriggers()`; expect five scheduled handlers + `cleanupExpiredTempAssets`.
+- [ ] Redeploy Apps Script Web App and copy the new `/exec` URL if deployment changed.
+- [ ] Upload frontend files to GitHub Pages.
+- [ ] Save `/exec` URL on login screen.
+- [ ] Test one level using `Run this level now` on a test date.
+- [ ] Verify: only one P1 and one P2 event in `Generation_Log`.
+- [ ] Verify final PDF is inside the correct Drive level folder and the Sheet link opens it.
+- [ ] Verify P1/P2 source links and 18-hour expiry values are present.
+- [ ] Test manual P1 regeneration: P2 must remain untouched; new PDF rebuild only if both sources exist.
+- [ ] Test double-click protection: second running request should return BUSY / skip, not call OpenAI twice.
