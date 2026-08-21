@@ -490,9 +490,20 @@
                     <i></i>
                   </label>
                 </div>
+
+                <div class="checkrow">
+                  <div>
+                    <strong>Force source background to pure white</strong>
+                    <span>Cream / ivory / off-white paper → #FFFFFF</span>
+                  </div>
+                  <label class="switch">
+                    <input id="normalizeBackground" type="checkbox" checked>
+                    <i></i>
+                  </label>
+                </div>
               </div>
 
-              <div class="cleanup-note" id="pdfLayoutNote"><b>Exact image</b> creates each PDF page at the same aspect ratio as the uploaded image: no crop, no stretch, no hidden margin. A4 mode preserves the whole image and centers any unavoidable whitespace evenly.</div>
+              <div class="cleanup-note" id="pdfLayoutNote"><b>Exact image</b> creates each PDF page at the same aspect ratio as the uploaded image: no crop, no stretch, no hidden margin. With <b>Force source background to pure white</b> enabled, cream/off-white paper pixels are normalized before embedding. A4 mode preserves the whole image and centers any unavoidable whitespace evenly.</div>
 
               <div class="actions">
                 <button class="primary-btn" id="generatePdfBtn" disabled>Generate PDF</button>
@@ -629,8 +640,8 @@
                 <div class="field range-row">
                   <label>Whiten Threshold</label>
                   <div class="range-wrap">
-                    <input id="whitenThreshold" type="range" min="145" max="250" value="220">
-                    <div class="range-value" id="whitenThresholdValue">220</div>
+                    <input id="whitenThreshold" type="range" min="145" max="250" value="190">
+                    <div class="range-value" id="whitenThresholdValue">190</div>
                   </div>
                 </div>
 
@@ -672,7 +683,7 @@
               </div>
 
               <div class="cleanup-note">
-                Best for document-style images. It turns light/off-white areas toward pure white while protecting darker text, logos, illustrations, and borders.
+                Hard-white document cleanup. It targets neutral and warm paper colors such as cream, ivory, beige, off-white, and light gray, and converts them to pure #FFFFFF while preserving saturated artwork, text, logos, borders, and illustrations.
               </div>
             </div>
           </div>
@@ -975,25 +986,56 @@
     const exact = $("#pageSize").value === "source";
     ["orientation","fitMode","safeMargin"].forEach(id => { $("#"+id).disabled = exact; });
     $("#pdfLayoutNote").innerHTML = exact
-      ? "<b>Exact image</b> creates each PDF page at the same aspect ratio as the uploaded image: no crop, no stretch, no hidden margin."
+      ? "<b>Exact image</b> creates each PDF page at the same aspect ratio as the uploaded image: no crop, no stretch, no hidden margin. With <b>Force source background to pure white</b> enabled, cream/off-white paper pixels are normalized before embedding."
       : "<b>A4 preserve mode</b> keeps the complete image. If the source ratio is different from A4, whitespace is centered evenly instead of being left on one random edge.";
   }
-  ["pageSize","orientation","fitMode","safeMargin","whiteBackground"].forEach(id => {
+  ["pageSize","orientation","fitMode","safeMargin","whiteBackground","normalizeBackground"].forEach(id => {
     $("#"+id).addEventListener("change", () => { invalidatePdf(); syncPdfLayoutControls(); });
   });
   syncPdfLayoutControls();
 
-  async function pageAsPngBytes(page){
-    // pdf-lib can embed JPEG/PNG natively. WEBP is converted via canvas.
-    if (page.file.type === "image/png") return {type:"png", bytes: await page.file.arrayBuffer()};
-    if (page.file.type === "image/jpeg") return {type:"jpg", bytes: await page.file.arrayBuffer()};
+  function hardWhiteDocumentPixels(imageData, threshold=190){
+    const data = imageData.data;
+    for (let i=0; i<data.length; i+=4){
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const maxc=Math.max(r,g,b), minc=Math.min(r,g,b);
+      const chroma=maxc-minc;
+      const lum=0.2126*r + 0.7152*g + 0.0722*b;
+
+      const neutralPaper = lum >= threshold && chroma <= 38;
+      const warmPaper =
+        lum >= Math.max(175, threshold-15) &&
+        r >= g-5 &&
+        g >= b-8 &&
+        (r-b) <= 78 &&
+        b >= 150;
+      const nearWhite = minc >= 238 && chroma <= 28;
+
+      if (neutralPaper || warmPaper || nearWhite){
+        data[i]=255; data[i+1]=255; data[i+2]=255;
+      }
+    }
+    return imageData;
+  }
+
+  async function pageAsPngBytes(page, normalize=false){
+    if (!normalize && page.file.type === "image/png") return {type:"png", bytes: await page.file.arrayBuffer()};
+    if (!normalize && page.file.type === "image/jpeg") return {type:"jpg", bytes: await page.file.arrayBuffer()};
 
     const img = await loadImage(page.src);
     const canvas = document.createElement("canvas");
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", {willReadFrequently:true});
+    ctx.fillStyle="#ffffff";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(img,0,0);
+
+    if (normalize){
+      const id=ctx.getImageData(0,0,canvas.width,canvas.height);
+      ctx.putImageData(hardWhiteDocumentPixels(id,190),0,0);
+    }
+
     const blob = await new Promise(res => canvas.toBlob(res,"image/png"));
     return {type:"png", bytes: await blob.arrayBuffer()};
   }
@@ -1013,9 +1055,10 @@
       const forcedOrientation = $("#orientation").value;
       const fit = $("#fitMode").value;
       const whiteBg = $("#whiteBackground").checked;
+      const normalizeBg = $("#normalizeBackground").checked;
 
       for (const page of imagePages){
-        const data = await pageAsPngBytes(page);
+        const data = await pageAsPngBytes(page, normalizeBg);
         const embedded = data.type === "jpg"
           ? await doc.embedJpg(data.bytes)
           : await doc.embedPng(data.bytes);
@@ -1303,7 +1346,8 @@
     cleanupCanvas.height = h;
 
     const ctx = cleanupCanvas.getContext("2d", {willReadFrequently:true});
-    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="#ffffff";
+    ctx.fillRect(0,0,w,h);
     ctx.drawImage(img,0,0,w,h);
 
     const imageData = ctx.getImageData(0,0,w,h);
@@ -1313,16 +1357,28 @@
     const preserve = $("#preserveDark").checked;
 
     for (let i=0; i<data.length; i+=4){
-      const r = data[i], g = data[i+1], b = data[i+2];
-      const lum = 0.2126*r + 0.7152*g + 0.0722*b;
-      const chroma = Math.max(r,g,b) - Math.min(r,g,b);
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const maxc=Math.max(r,g,b), minc=Math.min(r,g,b);
+      const chroma=maxc-minc;
+      const lum=0.2126*r + 0.7152*g + 0.0722*b;
 
-      if (lum >= threshold && chroma <= 60){
-        data[i]   = Math.round(r + (255-r)*strength);
-        data[i+1] = Math.round(g + (255-g)*strength);
-        data[i+2] = Math.round(b + (255-b)*strength);
-      } else if (!preserve && lum >= threshold - 25){
-        const factor = Math.max(0, Math.min(1, (lum-(threshold-25))/25)) * strength;
+      const neutralPaper = lum >= threshold && chroma <= 40;
+      const warmPaper =
+        lum >= Math.max(170, threshold-20) &&
+        r >= g-5 &&
+        g >= b-8 &&
+        (r-b) <= 82 &&
+        b >= 145;
+      const nearWhite = minc >= 236 && chroma <= 30;
+
+      let factor=0;
+      if (neutralPaper || warmPaper || nearWhite) {
+        factor=strength;
+      } else if (!preserve && lum >= threshold-30 && chroma <= 65) {
+        factor=Math.max(0,Math.min(1,(lum-(threshold-30))/30))*strength;
+      }
+
+      if (factor>0){
         data[i]   = Math.round(r + (255-r)*factor);
         data[i+1] = Math.round(g + (255-g)*factor);
         data[i+2] = Math.round(b + (255-b)*factor);
