@@ -9,14 +9,17 @@
 </head>
 <body>
   <div class="glow glow-red"></div><div class="glow glow-blue"></div>
+
   <section id="loginView" class="login-view">
     <div class="login-shell">
       <div class="login-brand panel">
         <img src="./assets/kip-logo.jpg" class="login-logo" alt="KIP" />
-        <span class="eyebrow">AUTOMATION V2</span>
+        <span class="eyebrow">AUTOMATION V2.2</span>
         <h1>Regular Material<br><span>Production Center</span></h1>
-        <p>Five staggered production lines. Exactly one automatic image attempt per page, server-side PDF, 18-hour source retention, then human visual QC.</p>
-        <div class="mini-grid"><span>05:30–07:30 WIB</span><span>GPT Image 2 Medium</span><span>10 planned images/day</span><span>No auto retry</span></div>
+        <p>Five staggered production lines, one automatic attempt per page, full-page source-faithful PDF, 18-hour source retention, and final human QC.</p>
+        <div class="mini-grid">
+          <span>05:30–07:30 WIB</span><span>GPT Image 2 Medium</span><span>10 planned images/day</span><span>No auto retry</span>
+        </div>
       </div>
       <form id="loginForm" class="login-card panel">
         <h2>Operator Sign In</h2><p>Authorized KIP production account only.</p>
@@ -31,29 +34,58 @@
 
   <main id="appView" class="hidden">
     <header class="topbar">
-      <div class="brand"><img src="./assets/kip-logo.jpg" alt="KIP"/><div><strong>KIP Automatic Production</strong><small>Regular Material · Automation V2</small></div></div>
+      <div class="brand"><img src="./assets/kip-logo.jpg" alt="KIP"/><div><strong>KIP Automatic Production</strong><small>Regular Material · Automation V2.2</small></div></div>
       <div class="top-actions"><a href="./utilities.html#imagesToPdf" class="btn btn-ghost">PDF Converter</a><a href="./utilities.html#backgroundToWhite" class="btn btn-ghost">White Background</a><button id="logoutBtn" class="btn btn-ghost">Sign out</button></div>
     </header>
 
     <section class="hero shell">
-      <div><span class="eyebrow">CONTROLLED AUTOMATION</span><h1>Generate once.<br><span>QC after PDF.</span></h1><p>The schedule generates one level at a time. Bad-looking output is never regenerated automatically; only an explicit human click can spend another image call.</p></div>
-      <div class="hero-card"><div class="hero-kpi"><b>18h</b><span>source PNG retention</span></div><div class="hero-kpi"><b>0×</b><span>automatic retries</span></div><div class="hero-kpi"><b>5</b><span>independent level triggers</span></div></div>
+      <div><span class="eyebrow">CONTROLLED AUTOMATION</span><h1>Generate once.<br><span>Review from Drive.</span></h1><p>The dashboard stays light: generated pages and PDFs are opened through their Google Drive links instead of loading large files inside the UI. Final PDF pages use the generated source image edge-to-edge.</p></div>
+      <div class="hero-card"><div class="hero-kpi"><b>18h</b><span>source image retention</span></div><div class="hero-kpi"><b>0×</b><span>automatic retries</span></div><div class="hero-kpi"><b>31 Aug</b><span>curriculum sequence start</span></div></div>
     </section>
 
     <section class="shell schedule-panel panel">
-      <div class="section-head"><div><span class="eyebrow">DAILY SCHEDULE · WIB</span><h2>Five independent production windows</h2></div><div class="link-row"><a id="generationLogLink" class="btn btn-ghost disabled" target="_blank">Generation Log</a><a id="driveFolderLink" class="btn btn-ghost disabled" target="_blank">Regular Material Drive</a></div></div>
+      <div class="section-head"><div><span class="eyebrow">DAILY SCHEDULE · WIB</span><h2>Five independent production windows</h2></div><div class="link-row"><a id="generationLogLink" class="btn btn-ghost disabled" target="_blank" rel="noopener">Generation Log</a><a id="driveFolderLink" class="btn btn-ghost disabled" target="_blank" rel="noopener">Regular Material Drive</a></div></div>
       <div id="scheduleGrid" class="schedule-grid"></div>
     </section>
 
     <section class="shell controls panel">
-      <div><label>Material date</label><div class="date-row"><input id="materialDate" type="date"/><button id="todayBtn" class="btn btn-ghost">Today</button><button id="loadBtn" class="btn btn-navy">Load production</button></div></div>
+      <div class="date-control">
+        <label>Curriculum material date</label>
+        <small>Sequence starts Monday, 31 August 2026 · weekdays only</small>
+        <div class="date-row">
+          <button id="prevDateBtn" class="btn btn-ghost" type="button">← Previous</button>
+          <input id="materialDate" type="date" min="2026-08-31" />
+          <button id="nextDateBtn" class="btn btn-ghost" type="button">Next →</button>
+          <button id="startDateBtn" class="btn btn-ghost" type="button">Start date</button>
+          <button id="loadBtn" class="btn btn-navy" type="button">Load production</button>
+        </div>
+      </div>
       <div class="summary"><div><b id="summaryLoaded">0 / 5</b><span>Loaded</span></div><div><b id="summaryP1">0 / 5</b><span>P1 ready</span></div><div><b id="summaryP2">0 / 5</b><span>P2 ready</span></div><div><b id="summaryPdf">0 / 5</b><span>PDF ready</span></div><div><b id="summaryQc">0 / 5</b><span>QC approved</span></div></div>
     </section>
+
     <div id="globalStatus" class="shell status hidden"></div>
-    <section id="materialsGrid" class="shell materials-grid"><div class="empty panel"><b>Load a date</b><p>The dashboard reads the five curriculum sheets plus persistent production state.</p></div></section>
+    <section id="materialsGrid" class="shell materials-grid"><div class="empty panel"><b>Load a curriculum date</b><p>Start from 31 August 2026 and move through weekdays only.</p></div></section>
   </main>
 
-  <div id="imageModal" class="modal hidden"><div class="modal-card"><div class="modal-head"><div><small id="modalLevel"></small><h3 id="modalTitle"></h3></div><button id="closeModalBtn" class="icon-btn">×</button></div><img id="modalImage" alt="Generated material preview"/><p class="modal-note">Preview includes the deterministic KIP watermark. The original PNG remains in temporary Drive storage for 18 hours from its creation time.</p></div></div>
+  <div id="runModal" class="modal hidden" aria-modal="true" role="dialog">
+    <div class="modal-card run-modal-card">
+      <div class="modal-head"><div><small>MANUAL PRODUCTION</small><h3 id="runModalTitle">Run level manually</h3></div><button id="closeRunModalBtn" class="icon-btn" type="button">×</button></div>
+      <div class="run-info-grid">
+        <div><span>Date</span><b id="runModalDate">—</b></div>
+        <div><span>Level</span><b id="runModalLevel">—</b></div>
+        <div><span>Material ID</span><b id="runModalMaterialId">—</b></div>
+      </div>
+      <div class="run-steps">
+        <div class="run-step"><i>1</i><div><b>Page 1</b><span id="runModalP1">Check current state</span></div></div>
+        <div class="run-step"><i>2</i><div><b>Page 2</b><span id="runModalP2">Uses Page 1 reference</span></div></div>
+        <div class="run-step"><i>3</i><div><b>Full-page PDF</b><span id="runModalPdf">Built without another OpenAI image call</span></div></div>
+      </div>
+      <div id="runModalNotice" class="run-notice">The backend will skip anything already completed or already automatically attempted. There are no automatic retries.</div>
+      <div id="runModalStatus" class="status hidden"></div>
+      <div class="modal-actions"><button id="cancelRunBtn" class="btn btn-ghost" type="button">Cancel</button><button id="confirmRunBtn" class="btn btn-red" type="button">Run this level</button></div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
 </html>
