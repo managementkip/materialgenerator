@@ -444,14 +444,15 @@
           <aside class="card">
             <div class="card-head">
               <h4>PDF Settings</h4>
-              <small>Print-safe defaults</small>
+              <small>Exact-source default · no accidental whitespace</small>
             </div>
             <div class="card-body">
               <div class="settings">
                 <div class="field">
-                  <label>Page Size</label>
+                  <label>PDF Page</label>
                   <select id="pageSize">
-                    <option value="A4">A4</option>
+                    <option value="source" selected>Exact image — no extra space</option>
+                    <option value="A4">A4 — preserve complete image</option>
                   </select>
                 </div>
                 <div class="field">
@@ -472,9 +473,9 @@
                 <div class="field">
                   <label>Safe Margin</label>
                   <select id="safeMargin">
-                    <option value="0">0 mm</option>
+                    <option value="0" selected>0 mm</option>
                     <option value="3">3 mm</option>
-                    <option value="5" selected>5 mm</option>
+                    <option value="5">5 mm</option>
                     <option value="8">8 mm</option>
                     <option value="10">10 mm</option>
                   </select>
@@ -490,6 +491,8 @@
                   </label>
                 </div>
               </div>
+
+              <div class="cleanup-note" id="pdfLayoutNote"><b>Exact image</b> creates each PDF page at the same aspect ratio as the uploaded image: no crop, no stretch, no hidden margin. A4 mode preserves the whole image and centers any unavoidable whitespace evenly.</div>
 
               <div class="actions">
                 <button class="primary-btn" id="generatePdfBtn" disabled>Generate PDF</button>
@@ -968,9 +971,17 @@
     renderImageList();
   });
 
-  ["orientation","fitMode","safeMargin","whiteBackground"].forEach(id => {
-    $("#"+id).addEventListener("change", invalidatePdf);
+  function syncPdfLayoutControls(){
+    const exact = $("#pageSize").value === "source";
+    ["orientation","fitMode","safeMargin"].forEach(id => { $("#"+id).disabled = exact; });
+    $("#pdfLayoutNote").innerHTML = exact
+      ? "<b>Exact image</b> creates each PDF page at the same aspect ratio as the uploaded image: no crop, no stretch, no hidden margin."
+      : "<b>A4 preserve mode</b> keeps the complete image. If the source ratio is different from A4, whitespace is centered evenly instead of being left on one random edge.";
+  }
+  ["pageSize","orientation","fitMode","safeMargin","whiteBackground"].forEach(id => {
+    $("#"+id).addEventListener("change", () => { invalidatePdf(); syncPdfLayoutControls(); });
   });
+  syncPdfLayoutControls();
 
   async function pageAsPngBytes(page){
     // pdf-lib can embed JPEG/PNG natively. WEBP is converted via canvas.
@@ -997,39 +1008,47 @@
     try{
       const { PDFDocument, rgb } = PDFLib;
       const doc = await PDFDocument.create();
+      const pageMode = $("#pageSize").value;
       const marginPt = mmToPt(Number($("#safeMargin").value));
       const forcedOrientation = $("#orientation").value;
       const fit = $("#fitMode").value;
       const whiteBg = $("#whiteBackground").checked;
 
       for (const page of imagePages){
-        let pageOrientation = forcedOrientation;
-        if (pageOrientation === "auto") pageOrientation = page.width >= page.height ? "landscape" : "portrait";
-
-        const pageW = pageOrientation === "portrait" ? mmToPt(210) : mmToPt(297);
-        const pageH = pageOrientation === "portrait" ? mmToPt(297) : mmToPt(210);
-        const pdfPage = doc.addPage([pageW,pageH]);
-
-        if (whiteBg){
-          pdfPage.drawRectangle({x:0,y:0,width:pageW,height:pageH,color:rgb(1,1,1)});
-        }
-
         const data = await pageAsPngBytes(page);
         const embedded = data.type === "jpg"
           ? await doc.embedJpg(data.bytes)
           : await doc.embedPng(data.bytes);
 
-        const availW = Math.max(1,pageW - marginPt*2);
-        const availH = Math.max(1,pageH - marginPt*2);
-        const scaleContain = Math.min(availW/embedded.width, availH/embedded.height);
-        const scaleCover = Math.max(availW/embedded.width, availH/embedded.height);
-        const scale = fit === "cover" ? scaleCover : scaleContain;
-        const drawW = embedded.width*scale;
-        const drawH = embedded.height*scale;
-        const x = (pageW-drawW)/2;
-        const y = (pageH-drawH)/2;
+        let pageW, pageH, drawW, drawH, x, y;
 
-        // cover may extend outside printable region; clip is not required because page boundaries clip automatically.
+        if (pageMode === "source") {
+          // Convert exactly what was uploaded. The page itself follows the image
+          // aspect ratio, so there is no crop, stretch, or unexplained gap.
+          if (embedded.width >= embedded.height) {
+            pageW = mmToPt(297);
+            pageH = pageW * (embedded.height / embedded.width);
+          } else {
+            pageH = mmToPt(297);
+            pageW = pageH * (embedded.width / embedded.height);
+          }
+          drawW = pageW; drawH = pageH; x = 0; y = 0;
+        } else {
+          let pageOrientation = forcedOrientation;
+          if (pageOrientation === "auto") pageOrientation = embedded.width >= embedded.height ? "landscape" : "portrait";
+          pageW = pageOrientation === "portrait" ? mmToPt(210) : mmToPt(297);
+          pageH = pageOrientation === "portrait" ? mmToPt(297) : mmToPt(210);
+          const availW = Math.max(1,pageW - marginPt*2);
+          const availH = Math.max(1,pageH - marginPt*2);
+          const scaleContain = Math.min(availW/embedded.width, availH/embedded.height);
+          const scaleCover = Math.max(availW/embedded.width, availH/embedded.height);
+          const scale = fit === "cover" ? scaleCover : scaleContain;
+          drawW = embedded.width*scale; drawH = embedded.height*scale;
+          x = (pageW-drawW)/2; y = (pageH-drawH)/2;
+        }
+
+        const pdfPage = doc.addPage([pageW,pageH]);
+        if (whiteBg) pdfPage.drawRectangle({x:0,y:0,width:pageW,height:pageH,color:rgb(1,1,1)});
         pdfPage.drawImage(embedded,{x,y,width:drawW,height:drawH});
       }
 
@@ -1040,7 +1059,7 @@
       pdfFrame.src = generatedPdfUrl;
       pdfPreview.style.display = "block";
       downloadPdfBtn.disabled = false;
-      showStatus(pdfStatus, `✓ PDF created successfully · ${imagePages.length} page${imagePages.length===1?"":"s"} · ${formatBytes(generatedPdfBlob.size)}`, "ok");
+      showStatus(pdfStatus, `✓ PDF created · ${imagePages.length} page${imagePages.length===1?"":"s"} · ${$("#pageSize").value==="source"?"exact image ratio / zero margin":"A4 centered layout"} · ${formatBytes(generatedPdfBlob.size)}`, "ok");
       setTimeout(() => pdfPreview.scrollIntoView({behavior:"smooth",block:"center"}),150);
     }catch(err){
       console.error(err);
